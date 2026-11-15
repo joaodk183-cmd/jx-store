@@ -2,7 +2,10 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingCart, X, Plus, Minus, Trash2, ShieldCheck, Zap, Headphones } from "lucide-react";
+import {
+  ShoppingCart, X, Plus, Minus, Trash2,
+  ShieldCheck, Zap, Headphones
+} from "lucide-react";
 
 const products = [
   { id: 1, name: "Netflix Premium", category: "Streaming", price: 15, icon: "🎬" },
@@ -14,16 +17,21 @@ const products = [
 ];
 
 const money = (value) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
 export default function Home() {
   const [cart, setCart] = useState([]);
   const [category, setCategory] = useState("Todos");
   const [openCart, setOpenCart] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   function addProduct(product) {
     setCart((old) => {
       const found = old.find((item) => item.id === product.id);
+
       if (found) {
         return old.map((item) =>
           item.id === product.id
@@ -31,6 +39,7 @@ export default function Home() {
             : item
         );
       }
+
       return [...old, { ...product, quantity: 1 }];
     });
   }
@@ -51,12 +60,51 @@ export default function Home() {
     setCart((old) => old.filter((item) => item.id !== id));
   }
 
+  async function checkout() {
+    if (cart.length === 0 || loading) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: cart.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Não foi possível criar o pagamento.");
+      }
+
+      if (!data.paymentUrl) {
+        throw new Error("O Mercado Pago não retornou o link de pagamento.");
+      }
+
+      window.location.href = data.paymentUrl;
+    } catch (error) {
+      alert(error.message || "Erro ao iniciar pagamento.");
+      setLoading(false);
+    }
+  }
+
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  const quantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const quantity = cart.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 
   const filteredProducts =
     category === "Todos"
@@ -170,11 +218,13 @@ export default function Home() {
             <strong>Compra segura</strong>
             <span className="text-sm text-gray-400">Mais tranquilidade na compra</span>
           </div>
+
           <div className="flex flex-col items-center gap-3">
             <Zap className="text-purple-400" size={30} />
             <strong>Agilidade</strong>
             <span className="text-sm text-gray-400">Atendimento rápido</span>
           </div>
+
           <div className="flex flex-col items-center gap-3">
             <Headphones className="text-purple-400" size={30} />
             <strong>Suporte</strong>
@@ -212,6 +262,7 @@ export default function Home() {
                           {money(item.price)}
                         </p>
                       </div>
+
                       <button
                         onClick={() => removeProduct(item.id)}
                         className="text-red-400"
@@ -227,7 +278,9 @@ export default function Home() {
                       >
                         <Minus size={15} />
                       </button>
+
                       <span>{item.quantity}</span>
+
                       <button
                         onClick={() => changeQuantity(item.id, 1)}
                         className="rounded-lg border border-white/10 p-2"
@@ -245,15 +298,17 @@ export default function Home() {
                 <span>Total</span>
                 <span className="text-purple-400">{money(total)}</span>
               </div>
+
               <button
-                disabled={cart.length === 0}
-                onClick={() => alert("O checkout Pix será configurado na próxima etapa.")}
+                disabled={cart.length === 0 || loading}
+                onClick={checkout}
                 className="w-full rounded-xl bg-purple-600 py-4 font-bold hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                CONTINUAR PARA PAGAMENTO
+                {loading ? "GERANDO PAGAMENTO..." : "CONTINUAR PARA PAGAMENTO"}
               </button>
+
               <p className="mt-3 text-center text-xs text-gray-500">
-                Pagamento Pix automático será integrado em breve.
+                Pagamento processado pelo Mercado Pago.
               </p>
             </div>
           </div>
