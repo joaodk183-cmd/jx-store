@@ -79,7 +79,17 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      const texto = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(texto);
+      } catch {
+        throw new Error(
+          `O servidor respondeu com erro HTTP ${response.status}. Verifique a configuração da API.`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Não foi possível criar o pagamento.");
